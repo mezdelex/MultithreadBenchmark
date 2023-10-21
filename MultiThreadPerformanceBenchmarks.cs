@@ -43,10 +43,21 @@ public class MultiThreadPerformanceBenchmarks
         return listOfUsers;
     }
 
+    [Benchmark]
+    public List<User> ConcurrentParallelBenchmark()
+    {
+        var tasks = Enumerable.Range(0, Iterations).Select(_ => new Func<User>(() => GetUser(_httpClient).GetAwaiter().GetResult()));
+
+        var listOfUsers = new List<User>();
+        tasks.AsParallel().ForAll(t => LockAndAdd(listOfUsers, t));
+
+        return listOfUsers;
+    }
+
     private async Task<User> GetUser(HttpClient httpClient)
     {
-        var request = await _httpClient.GetAsync("http://localhost:3000/api/users/7");
-        var response = JsonConvert.DeserializeObject<Response>(await request.Content.ReadAsStringAsync());
+        var request = await _httpClient.GetStringAsync("http://localhost:3000/api/users/7");
+        var response = JsonConvert.DeserializeObject<Response>(request);
 
         return response!.Data;
     }
