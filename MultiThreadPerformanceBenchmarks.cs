@@ -44,7 +44,7 @@ public class MultiThreadPerformanceBenchmarks
     }
 
     [Benchmark]
-    public List<User> ConcurrentParallelBenchmark()
+    public List<User> PLINQBenchmark()
     {
         var tasks = Enumerable.Range(0, Iterations).Select(_ => new Func<User>(() => GetUser(_httpClient).GetAwaiter().GetResult()));
 
