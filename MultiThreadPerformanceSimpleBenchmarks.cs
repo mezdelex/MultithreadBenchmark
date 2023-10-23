@@ -4,7 +4,8 @@ namespace MultiThreadBenchmark;
 
 public class MultiThreadPerformanceSimpleBenchmarks
 {
-    private const int Iterations = 4;
+    private const int Iterations = 10;
+    private const int DegreeOfParallelism = 4;
 
     [Benchmark]
     public List<int> NormalBenchmark()
@@ -23,7 +24,10 @@ public class MultiThreadPerformanceSimpleBenchmarks
         var tasks = Enumerable.Range(0, Iterations).Select(_ => new Func<int>(() => PerformOperation()));
 
         var listOfResults = new List<int>();
-        Parallel.ForEach(tasks, task => listOfResults.Add(task()));
+        Parallel.ForEach(tasks, new ParallelOptions
+        {
+            MaxDegreeOfParallelism = DegreeOfParallelism
+        }, task => listOfResults.Add(task()));
 
         return listOfResults;
     }
@@ -34,7 +38,7 @@ public class MultiThreadPerformanceSimpleBenchmarks
         var tasks = Enumerable.Range(0, Iterations).Select(_ => new Func<int>(() => PerformOperation()));
 
         var listOfResults = new List<int>();
-        tasks.AsParallel().ForAll(t => listOfResults.Add(t()));
+        tasks.AsParallel().WithDegreeOfParallelism(DegreeOfParallelism).ForAll(t => listOfResults.Add(t()));
 
         return listOfResults;
     }

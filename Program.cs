@@ -16,6 +16,6 @@ public class MultiThreadBenchmark
             .AddValidator(JitOptimizationsValidator.DontFailOnError)
             .WithOptions(ConfigOptions.DisableOptimizationsValidator);
 
-        BenchmarkRunner.Run<MultiThreadPerformanceBenchmarks>(config);
+        BenchmarkRunner.Run<MultiThreadPerformanceSimpleBenchmarks>(config);
     }
 }

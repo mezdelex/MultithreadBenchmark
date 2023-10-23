@@ -6,7 +6,8 @@ namespace MultiThreadBenchmark;
 public class MultiThreadPerformanceBenchmarks
 {
     private readonly static HttpClient _httpClient = new();
-    private const int Iterations = 4;
+    private const int Iterations = 10;
+    private const int DegreeOfParallelism = 4;
 
     [Benchmark]
     public List<User> NormalBenchmark()
@@ -27,7 +28,7 @@ public class MultiThreadPerformanceBenchmarks
         var listOfUsers = new List<User>();
         Parallel.ForEach(tasks, new ParallelOptions
         {
-            MaxDegreeOfParallelism = 4
+            MaxDegreeOfParallelism = DegreeOfParallelism
         }, task => LockAndAdd(listOfUsers, task));
 
         return listOfUsers;
@@ -49,7 +50,7 @@ public class MultiThreadPerformanceBenchmarks
         var tasks = Enumerable.Range(0, Iterations).Select(_ => new Func<User>(() => GetUser(_httpClient).GetAwaiter().GetResult()));
 
         var listOfUsers = new List<User>();
-        tasks.AsParallel().ForAll(t => LockAndAdd(listOfUsers, t));
+        tasks.AsParallel().WithDegreeOfParallelism(DegreeOfParallelism).ForAll(t => LockAndAdd(listOfUsers, t));
 
         return listOfUsers;
     }
