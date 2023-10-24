@@ -1,73 +1,74 @@
 using BenchmarkDotNet.Attributes;
-using Newtonsoft.Json;
 
 namespace MultiThreadBenchmark;
 
 public class MultiThreadPerformanceBenchmarks
 {
-    private readonly static HttpClient _httpClient = new();
     private const int Iterations = 10;
-    private const int DegreeOfParallelism = 4;
+    private const int DegreeOfParallelism = 5;
 
     [Benchmark]
-    public List<User> NormalBenchmark()
+    public List<int> SynchronousBenchmark()
     {
-        var tasks = Enumerable.Range(0, Iterations).Select(_ => new Func<Task<User>>(() => GetUser(_httpClient)));
+        var tasks = Enumerable.Range(0, Iterations).Select(_ => new Func<int>(() => PerformOperation()));
 
-        var listOfUsers = new List<User>();
-        tasks.ToList().ForEach(t => listOfUsers.Add(t().GetAwaiter().GetResult()));
+        var listOfResults = new List<int>();
+        tasks.ToList().ForEach(expression => listOfResults.Add(expression()));
 
-        return listOfUsers;
+        return listOfResults;
     }
 
     [Benchmark]
-    public List<User> ParallelBenchmark()
+    public List<int> ConcurrentBenchmark()
     {
-        var tasks = Enumerable.Range(0, Iterations).Select(_ => new Func<User>(() => GetUser(_httpClient).GetAwaiter().GetResult()));
+        var tasks = Enumerable.Range(0, Iterations).Select(_ => Task.Run(() => PerformOperation()));
 
-        var listOfUsers = new List<User>();
-        Parallel.ForEach(tasks, new ParallelOptions
+        var listOfResults = new List<int>();
+        tasks.ToList().ForEach(task => listOfResults.Add(task.GetAwaiter().GetResult()));
+
+        return listOfResults;
+    }
+
+    [Benchmark]
+    public async Task<int[]> ConcurrentBenchmarkTaskWhenAll()
+    {
+        var tasks = Enumerable.Range(0, Iterations).Select(_ => Task.Run(() => PerformOperation()));
+
+        var listOfResults = await Task.WhenAll(tasks);
+
+        return listOfResults;
+    }
+
+    [Benchmark]
+    public async Task<List<int>> ParallelBenchmark()
+    {
+        var tasks = Enumerable.Range(0, Iterations).Select(_ => Task.Run(() => PerformOperation()));
+
+        var listOfResults = new List<int>();
+        await Parallel.ForEachAsync(tasks, new ParallelOptions
         {
             MaxDegreeOfParallelism = DegreeOfParallelism
-        }, task => LockAndAdd(listOfUsers, task));
+        }, async (task, _) => listOfResults.Add(await task));
 
-        return listOfUsers;
+        return listOfResults;
     }
 
     [Benchmark]
-    public async Task<User[]> ConcurrentBenchmark()
+    public List<int> PLINQBenchmark()
     {
-        var tasks = Enumerable.Range(0, Iterations).Select(_ => GetUser(_httpClient));
+        var tasks = Enumerable.Range(0, Iterations).Select(_ => Task.Run(() => PerformOperation()));
 
-        var listOfUsers = await Task.WhenAll(tasks);
+        var listOfResults = new List<int>();
+        tasks.AsParallel().WithDegreeOfParallelism(DegreeOfParallelism).ForAll(task => listOfResults.Add(task.GetAwaiter().GetResult()));
 
-        return listOfUsers;
+        return listOfResults;
     }
 
-    [Benchmark]
-    public List<User> PLINQBenchmark()
+    private int PerformOperation()
     {
-        var tasks = Enumerable.Range(0, Iterations).Select(_ => new Func<User>(() => GetUser(_httpClient).GetAwaiter().GetResult()));
+        Thread.Sleep(10);
+        var operation = 2 + 4;
 
-        var listOfUsers = new List<User>();
-        tasks.AsParallel().WithDegreeOfParallelism(DegreeOfParallelism).ForAll(t => LockAndAdd(listOfUsers, t));
-
-        return listOfUsers;
-    }
-
-    private async Task<User> GetUser(HttpClient httpClient)
-    {
-        var request = await _httpClient.GetStringAsync("http://localhost:3000/api/users/7");
-        var response = JsonConvert.DeserializeObject<Response>(request);
-
-        return response!.Data;
-    }
-
-    private void LockAndAdd(List<User> listOfUsers, Func<User> task)
-    {
-        lock (listOfUsers)
-        {
-            listOfUsers.Add(task());
-        }
+        return operation;
     }
 }
